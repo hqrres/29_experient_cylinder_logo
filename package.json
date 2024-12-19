@@ -11,7 +11,10 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.1.0"
+    "next": "15.1.0",
+    "three": "^0.171.0",
+    "three-msdf-text-utils": "^1.1.7",
+    "three-text-geometry": "^0.2.0"
   },
   "devDependencies": {
     "postcss": "^8",
