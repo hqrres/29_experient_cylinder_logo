@@ -25,38 +25,56 @@ export class Canvas {
     this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
     this.orbitControls.enableZoom = true;
 
-    this.renderTarget = new WebGLRenderTarget(512, 512);
+    this.renderTarget1 = new WebGLRenderTarget(512, 512);
+    this.renderTarget2 = new WebGLRenderTarget(512, 512);
 
-    this.addCube();
-    this.addRenderTargetScene();
+    this.addCylinder();
+    this.addRenderTargetScene1();
+    this.addRenderTargetScene2();
     this.animate();
     this.handleResize();
 
   }
 
-  addRenderTargetScene() {
-    this.rtScene = new Scene();
-    this.rtCamera = new PerspectiveCamera(35, 1, 0.1, 1000);
-    this.rtCamera.position.z = 5;
+  addRenderTargetScene1() {
+    this.rtScene1 = new Scene();
+    this.rtCamera1 = new PerspectiveCamera(35, 1, 0.1, 1000);
+    this.rtCamera1.position.z = 5;
 
-    const rtGeometry = new PlaneGeometry(2, 2);
-    const texture = new TextureLoader().load('/vt_logo_200x200_must.jpg');
-    const rtMaterial = new MeshBasicMaterial({ map: texture });
+    const rtGeometry1 = new PlaneGeometry(2, 2);
+    const texture1 = new TextureLoader().load('/vt_logo_200x200_must.jpg');
+    const rtMaterial1 = new MeshBasicMaterial({ map: texture1 });
 
-    const rtMesh = new Mesh(rtGeometry, rtMaterial);
-    rtMesh.position.x = 0.0; // Adjust this value to move the texture horizontally
-    rtMesh.position.y = 0.0; // Adjust this value to move the texture vertically
-    rtMesh.scale.set(1.6, 1.0, 1.0);
-    this.rtScene.add(rtMesh);
+    const rtMesh1 = new Mesh(rtGeometry1, rtMaterial1);
+    rtMesh1.position.x = 0.0;
+    rtMesh1.position.y = 0.0;
+    rtMesh1.scale.set(1.6, 1.0, 1.0);
+    this.rtScene1.add(rtMesh1);
   }
 
-  addCube() {
-    const geometry = new CylinderGeometry(5, 5, 10, 32, 1, true);
+  addRenderTargetScene2() {
+    this.rtScene2 = new Scene();
+    this.rtCamera2 = new PerspectiveCamera(35, 1, 0.1, 1000);
+    this.rtCamera2.position.z = 5;
 
-    // Define the shader material
+    const rtGeometry2 = new PlaneGeometry(2, 2);
+    const texture2 = new TextureLoader().load('/vt_logo_200x200_roh.jpg'); // Use a different texture
+    const rtMaterial2 = new MeshBasicMaterial({ map: texture2 });
+
+    const rtMesh2 = new Mesh(rtGeometry2, rtMaterial2);
+    rtMesh2.position.x = 0.0;
+    rtMesh2.position.y = 0.0;
+    rtMesh2.scale.set(1.6, 1.0, 1.0);
+    this.rtScene2.add(rtMesh2);
+  }
+
+  addCylinder() {
+    const geometry = new CylinderGeometry(5, 5, 6, 32, 1, true);
+
+    // Define the shader material for the larger cylinder
     const material = new ShaderMaterial({
       uniforms: {
-        uTexture: { value: this.renderTarget.texture },
+        uTexture: { value: this.renderTarget1.texture },
         numRows: { value: 1.0 },
         numCols: { value: 4.0 }
       },
@@ -80,19 +98,58 @@ export class Canvas {
       `,
     });
 
-    this.cube = new Mesh(geometry, material);
-    this.cube.rotation.x = Math.PI;
-    this.cube.rotation.z = -Math.PI;
-    this.scene.add(this.cube);
+    this.cylinder = new Mesh(geometry, material);
+    this.cylinder.rotation.x = Math.PI;
+    this.cylinder.rotation.z = -Math.PI;
+    this.scene.add(this.cylinder);
+
+    // Add a second cylinder with a different render target texture on the inside
+    const smallerGeometry = new CylinderGeometry(4.75, 4.75, 6, 32, 1, true);
+    const smallerMaterial = new ShaderMaterial({
+      uniforms: {
+        uTexture: { value: this.renderTarget2.texture }, // Use the second render target texture
+        numRows: { value: 1.0 },
+        numCols: { value: 4.0 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D uTexture;
+        uniform float numRows;
+        uniform float numCols;
+        varying vec2 vUv;
+        void main() {
+          vec2 gridUV = fract(vUv * vec2(numCols, numRows));
+          vec4 texColor = texture2D(uTexture, gridUV);
+          gl_FragColor = texColor;
+        }
+      `,
+      side: THREE.BackSide // Render the texture on the inside
+    });
+
+    this.smallerCylinder = new Mesh(smallerGeometry, smallerMaterial);
+    this.smallerCylinder.rotation.x = Math.PI;
+    this.smallerCylinder.rotation.z = -Math.PI;
+    this.scene.add(this.smallerCylinder);
   }
 
   animate() {
     requestAnimationFrame(() => this.animate());
     this.orbitControls.update();
 
-    // Render the render target scene to the render target
-    this.renderer.setRenderTarget(this.renderTarget);
-    this.renderer.render(this.rtScene, this.rtCamera);
+    // Render the first render target scene to the first render target
+    this.renderer.setRenderTarget(this.renderTarget1);
+    this.renderer.render(this.rtScene1, this.rtCamera1);
+
+    // Render the second render target scene to the second render target
+    this.renderer.setRenderTarget(this.renderTarget2);
+    this.renderer.render(this.rtScene2, this.rtCamera2);
+
     this.renderer.setRenderTarget(null);
 
     // Render the main scene
